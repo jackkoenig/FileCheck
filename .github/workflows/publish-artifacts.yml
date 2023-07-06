@@ -1,5 +1,4 @@
 name: Publish Artifacts
-
 on:
   release:
     types: [created]
@@ -16,16 +15,19 @@ jobs:
             arch: x64
             cont: "\\"
             setup: sudo apt-get install ninja-build
+            ext: ""
           - runner: macos-11
             os: macos
             arch: x64
             cont: "\\"
             setup: brew install ninja gnu-tar
+            ext: ""
           - runner: windows-2019
             os: windows
             arch: x64
             cont: "`"
             setup: ./.github/scripts/enter-vs-dev.ps1
+            ext: ".exe"
     runs-on: ${{ matrix.runner }}
     steps:
       # Clone with submodules. Do shallow clone to save clone time in LLVM.
@@ -61,12 +63,8 @@ jobs:
         id: name_binary
         shell: bash
         run: |
-          NAME=FileCheck-${{ matrix.os }}-${{ matrix.arch }}
-          echo $PWD
-          ls
-          ls build
-          ls build/bin
-          mv build/bin/FileCheck $NAME
+          NAME=FileCheck-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+          mv build/bin/FileCheck${{ matrix.ext }} $NAME
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload Binary (Non-Tag)
