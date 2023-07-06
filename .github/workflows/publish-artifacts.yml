@@ -1,0 +1,86 @@
+name: Publish Artifacts
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    strategy:
+      matrix:
+        runner: [windows-2019, ubuntu-20.04, macos-11]
+        include:
+          - runner: ubuntu-20.04
+            os: linux
+            arch: x64
+            cont: "\\"
+            setup: sudo apt-get install ninja-build
+          - runner: macos-11
+            os: macos
+            arch: x64
+            cont: "\\"
+            setup: brew install ninja gnu-tar
+          - runner: windows-2019
+            os: windows
+            arch: x64
+            cont: "`"
+            setup: ./.github/scripts/enter-vs-dev.ps1
+    runs-on: ${{ matrix.runner }}
+    steps:
+      # Clone with submodules. Do shallow clone to save clone time in LLVM.
+      - name: Get LLVM
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          submodules: "true"
+
+      - name: Build FileCheck
+        run: |
+          ${{ matrix.setup }}
+          mkdir -p build
+          cd build
+          cmake -G Ninja ../llvm/llvm ${{ matrix.cont }}
+            -DCMAKE_BUILD_TYPE=release ${{ matrix.cont }}
+            -DBUILD_SHARED_LIBS=OFF ${{ matrix.cont }}
+            -DLLVM_BUILD_TOOLS=OFF ${{ matrix.cont }}
+            -DLLVM_BUILD_EXAMPLES=OFF ${{ matrix.cont }}
+            -DLLVM_ENABLE_ASSERTIONS=OFF ${{ matrix.cont }}
+            -DLLVM_ENABLE_BINDINGS=OFF ${{ matrix.cont }}
+            -DLLVM_ENABLE_OCAMLDOC=OFF ${{ matrix.cont }}
+            -DLLVM_OPTIMIZED_TABLEGEN=ON ${{ matrix.cont }}
+            -DLLVM_STATIC_LINK_CXX_STDLIB=ON ${{ matrix.cont }}
+            -DLLVM_ENABLE_TERMINFO=OFF ${{ matrix.cont }}
+            -DLLVM_PARALLEL_LINK_JOBS=1 ${{ matrix.cont }}
+            -DLLVM_TARGETS_TO_BUILD="host" ${{ matrix.cont }}
+            -DLLVM_ENABLE_ZSTD=OFF
+          ninja FileCheck
+          cd ..
+
+      - name: Name Binary
+        id: name_binary
+        shell: bash
+        run: |
+          NAME=FileCheck-${{ matrix.os }}-${{ matrix.arch }}
+          echo $PWD
+          ls
+          ls build
+          ls build/bin
+          mv build/bin/FileCheck $NAME
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Binary (Non-Tag)
+        uses: actions/upload-artifact@v3
+        if: github.ref_type != 'tag'
+        with:
+          name: ${{ steps.name_binary.outputs.name }}
+          path: ${{ steps.name_binary.outputs.name }}
+          retention-days: 7
+
+      - name: Upload Binary (Tag)
+        uses: AButler/upload-release-assets@v2.0
+        if: github.ref_type == 'tag'
+        with:
+          files: ${{ steps.name_binary.outputs.name }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
