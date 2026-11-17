@@ -8,21 +8,33 @@ jobs:
   publish:
     strategy:
       matrix:
-        runner: [windows-2019, ubuntu-20.04, macos-11]
+        runner: [windows-2022, ubuntu-22.04, ubuntu-22.04-arm64, macos-15, macos-15-intel]
         include:
-          - runner: ubuntu-20.04
+          - runner: ubuntu-22.04
             os: linux
             arch: x64
             cont: "\\"
-            setup: sudo apt-get install ninja-build
+            setup: sudo apt-get install -y ninja-build
             ext: ""
-          - runner: macos-11
+          - runner: ubuntu-22.04-arm64
+            os: linux
+            arch: arm64
+            cont: "\\"
+            setup: sudo apt-get install -y ninja-build
+            ext: ""
+          - runner: macos-15-intel
             os: macos
             arch: x64
             cont: "\\"
             setup: brew install ninja gnu-tar
             ext: ""
-          - runner: windows-2019
+          - runner: macos-15
+            os: macos
+            arch: arm64
+            cont: "\\"
+            setup: brew install ninja gnu-tar
+            ext: ""
+          - runner: windows-2022
             os: windows
             arch: x64
             cont: "`"
@@ -32,7 +44,7 @@ jobs:
     steps:
       # Clone with submodules. Do shallow clone to save clone time in LLVM.
       - name: Get LLVM
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
           submodules: "true"
@@ -68,7 +80,7 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload Binary (Non-Tag)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         if: github.ref_type != 'tag'
         with:
           name: ${{ steps.name_binary.outputs.name }}
@@ -76,7 +88,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Binary (Tag)
-        uses: AButler/upload-release-assets@v2.0
+        uses: AButler/upload-release-assets@v4.0.0
         if: github.ref_type == 'tag'
         with:
           files: ${{ steps.name_binary.outputs.name }}
